@@ -17,7 +17,7 @@ const server = http.createServer(function(req, res) {
             // [GET] / メインhtml
             logger.info(`[${req.method}] ${req.url} from ${req.socket.remoteAddress}`);
             res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"});
-            let html = fs.readFileSync("index.html", "utf-8");
+            let html = fs.readFileSync("browser/index.html", "utf-8");
             res.end(html);
             // 通信終了
         } else if (req.url == "/get") {
@@ -47,9 +47,9 @@ const server = http.createServer(function(req, res) {
             let icon;
             // 超☆簡易ブラウザ判定
             if (ua.includes("Edg") && !ua.includes("Edge")) {
-                icon = fs.readFileSync("edge.ico");
+                icon = fs.readFileSync("browser/edge.ico");
             } else {
-                icon = fs.readFileSync("chrome.ico");
+                icon = fs.readFileSync("browser/chrome.ico");
             }
             res.end(icon);
             // 通信終了

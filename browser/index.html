@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <!-- <meta http-equiv="X-UA-Compatible" content="IE=edge"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブラウザ音声読み上げ for Node.js</title>
+</head>
+<body>
+    <h1>ブラウザ音声読み上げ for Node.js</h1>
+    <label for="voices">音声:</label>
+    <select name="voices" id="voices"></select>
+    <button id="play">起動</button>
+    <script>
+        "use strict";
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let vindex = -1;
+        let loopid;
+
+        const speak = (txt) => {
+            if (synth.speaking) {
+                console.error("speaking!!");
+                return;
+            }
+            // const uttr = new SpeechSynthesisUtterance("こんにちは！コルタナと申します。");
+            const uttr = new SpeechSynthesisUtterance(txt);
+            uttr.onend = (ev) => {
+                console.log("uttr終了");
+            }
+            uttr.onerror = (ev) => {
+                console.error("uttr err");
+            }
+            uttr.voice = voices[vindex];
+            console.log(voices[vindex].name);
+            uttr.pitch = 1;
+            uttr.rate = 1;
+            synth.speak(uttr);
+        };
+
+        window.addEventListener("load", (ev) => {
+            const updateVoice = () => {
+                // voices: 日本語読み上げ音声の配列
+                voices = synth.getVoices().filter((val) => val.lang == "ja-JP");
+                const sel = document.getElementById("voices");
+                while(sel.firstChild) {sel.removeChild(sel.firstChild);}
+                let onlined = false;
+                voices.forEach((val, ix) => {
+                    const opt = document.createElement("option");
+                    opt.textContent = val.name;
+                    sel.appendChild(opt);
+                    if (!onlined && !val.localService) {
+                        onlined = true;
+                        sel.selectedIndex = ix;
+                    }
+                });
+                if (vindex > -1) {
+                    sel.selectedIndex = vindex;
+                } else {
+                    vindex = sel.selectedIndex;
+                }
+                console.log(voices);
+            };
+            updateVoice();
+            if (synth.onvoiceschanged !== undefined) {
+                synth.onvoiceschanged = updateVoice;
+            }
+            const start = function(){
+                document.getElementById("play").removeEventListener("click", start);
+                document.getElementById("play").addEventListener("click", stop);
+                document.getElementById("play").textContent = "起動中";
+                //speak();
+                loopid = setInterval(() => {
+                    if (!synth.speaking) {
+                        fetch("get")
+                        .then((val) => val.json())
+                        .then((val) => {
+                            if (val["data"] != undefined) {
+                                speak(val["data"]);//!
+                            }
+                        });
+                    }
+                }, 500);
+                console.log("自動fetchを登録しました");
+            };
+            const stop = function(){
+                document.getElementById("play").removeEventListener("click", stop);
+                document.getElementById("play").addEventListener("click", start);
+                document.getElementById("play").textContent = "起動";
+                clearInterval(loopid);
+                console.log("自動fetchを登録解除しました");
+            };
+            document.getElementById("play").addEventListener("click", start);
+            document.getElementById("voices").addEventListener("change", function() {
+                vindex = this.selectedIndex;
+            });
+            // setTimeout(() => {
+            //     //document.getElementById("play").click();
+            //     speak();
+            // }, 5000);
+        });
+    </script>
+</body>
+</html>
