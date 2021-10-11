@@ -11,20 +11,34 @@
     <label for="voices">音声:</label>
     <select name="voices" id="voices"></select>
     <button id="play">起動</button>
+    <br>
+    <button id="clear">Nodeデータ削除</button>
     <script>
         "use strict";
+
+        // 設定
+        const dataName = "data";
+
+        // 内部変数
         const synth = window.speechSynthesis;
         let voices = [];
         let vindex = -1;
-        let loopid;
+        let loopId;
 
-        const speak = (txt) => {
+        const speak = (dataObj) => {
+            console.log(dataObj);
             if (synth.speaking) {
                 console.error("speaking!!");
                 return;
             }
+            const text = dataObj[dataName];
+            const speed = dataObj["speed"];
+            const tone = dataObj["tone"];
+            const volume = dataObj["volume"];
+
             // const uttr = new SpeechSynthesisUtterance("こんにちは！コルタナと申します。");
-            const uttr = new SpeechSynthesisUtterance(txt);
+            const uttr = new SpeechSynthesisUtterance(text);
+
             uttr.onend = (ev) => {
                 console.log("uttr終了");
             }
@@ -32,72 +46,104 @@
                 console.error("uttr err");
             }
             uttr.voice = voices[vindex];
-            console.log(voices[vindex].name);
-            uttr.pitch = 1;
-            uttr.rate = 1;
+
+            // パラメータ上限・下限値判定
+            if (speed != undefined && typeof speed === "number") {
+                if (speed < -1 || (-1 < speed && speed < 10)) uttr.rate = 0.1;//-1以外の10未満=0.1
+                else if (10 <= speed && speed <= 1000) uttr.rate = speed / 100;//10から1000まで=0.1~10
+                else if (1000 < speed) uttr.rate = 10;//1000超=10
+            }
+            if (tone != undefined && typeof tone === "number") {
+                if (tone < -1 || (-1 < tone && tone < 0)) uttr.pitch = 0;//-1以外の0未満=0
+                else if (0 <= tone && tone <= 200) uttr.pitch = tone / 100;//0から200まで=0~2
+                else if (200 < tone) uttr.pitch = 2;//200超=2
+            }
+            if (volume != undefined && typeof volume === "number") {
+                if (volume < -1 || (-1 < volume && volume < 1)) uttr.volume = 0.01;//-1以外の1未満=0.01
+                else if (1 <= volume && volume <= 100) uttr.volume = volume / 100;//1から100まで=0.01~1
+                else if (100 < volume) uttr.volume = 1;//100超=1
+            }
+            console.log(`s${uttr.rate}/t${uttr.pitch}/v${uttr.volume}`);
+            console.log(uttr);
+
             synth.speak(uttr);
         };
 
         window.addEventListener("load", (ev) => {
-            const updateVoice = () => {
+            const playButton = document.getElementById("play");
+            const voiceSel = document.getElementById("voices");
+            const clearButton = document.getElementById("clear");
+
+            const updateVoice = function() {
+                console.log("updateVoice: 更新開始");
                 // voices: 日本語読み上げ音声の配列
                 voices = synth.getVoices().filter((val) => val.lang == "ja-JP");
-                const sel = document.getElementById("voices");
-                while(sel.firstChild) {sel.removeChild(sel.firstChild);}
+                while(voiceSel.firstChild) {voiceSel.removeChild(voiceSel.firstChild);}
+
+                // リストに追加
                 let onlined = false;
-                voices.forEach((val, ix) => {
+                voices.forEach((voice, ix) => {
                     const opt = document.createElement("option");
-                    opt.textContent = val.name;
-                    sel.appendChild(opt);
-                    if (!onlined && !val.localService) {
+                    opt.textContent = voice.name;
+                    voiceSel.appendChild(opt);
+                    // 最初のオンラインサービスを選択する
+                    if (!onlined && !voice.localService) {
                         onlined = true;
-                        sel.selectedIndex = ix;
+                        voiceSel.selectedIndex = ix;
                     }
                 });
+
+                // 選択した形跡があればリストから再選択、なければ現在のindexを保存
                 if (vindex > -1) {
-                    sel.selectedIndex = vindex;
+                    voiceSel.selectedIndex = vindex;
                 } else {
-                    vindex = sel.selectedIndex;
+                    vindex = voiceSel.selectedIndex;
                 }
                 console.log(voices);
+                console.log("updateVoice: 更新終了");
             };
             updateVoice();
-            if (synth.onvoiceschanged !== undefined) {
-                synth.onvoiceschanged = updateVoice;
-            }
-            const start = function(){
-                document.getElementById("play").removeEventListener("click", start);
-                document.getElementById("play").addEventListener("click", stop);
-                document.getElementById("play").textContent = "起動中";
-                //speak();
-                loopid = setInterval(() => {
+            if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = updateVoice;
+
+            // 自動fetch開始
+            const start = function() {
+                playButton.removeEventListener("click", start);
+                playButton.addEventListener("click", stop);
+                playButton.textContent = "起動中";
+                loopId = setInterval(() => {
                     if (!synth.speaking) {
                         fetch("get")
                         .then((val) => val.json())
-                        .then((val) => {
-                            if (val["data"] != undefined) {
-                                speak(val["data"]);//!
+                        .then((json) => {
+                            if (json[dataName] != undefined) {
+                                speak(json);//!
                             }
                         });
                     }
                 }, 500);
                 console.log("自動fetchを登録しました");
             };
-            const stop = function(){
-                document.getElementById("play").removeEventListener("click", stop);
-                document.getElementById("play").addEventListener("click", start);
-                document.getElementById("play").textContent = "起動";
-                clearInterval(loopid);
+
+            // 自動fetch停止
+            const stop = function() {
+                playButton.removeEventListener("click", stop);
+                playButton.addEventListener("click", start);
+                playButton.textContent = "起動";
+                clearInterval(loopId);
                 console.log("自動fetchを登録解除しました");
             };
-            document.getElementById("play").addEventListener("click", start);
-            document.getElementById("voices").addEventListener("change", function() {
+
+            // Node削除
+            const clear = function() {
+                fetch("clear");
+            };
+
+            // イベント登録
+            playButton.addEventListener("click", start);
+            voiceSel.addEventListener("change", function() {
                 vindex = this.selectedIndex;
             });
-            // setTimeout(() => {
-            //     //document.getElementById("play").click();
-            //     speak();
-            // }, 5000);
+            clearButton.addEventListener("click", clear);
         });
     </script>
 </body>

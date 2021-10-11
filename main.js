@@ -7,6 +7,7 @@ const logger = log4js.getLogger("system");
 // 設定
 const port = 80;
 const localOnly = false;
+const dataName = "data";
 
 // 共有変数
 let datas = [];
@@ -73,7 +74,7 @@ const server = http.createServer(function(req, res) {
                 // [POST] /post データ追加用
                 try {
                     let json = JSON.parse(body);
-                    if (json["data"] == undefined) throw new Error("data undefined");
+                    if (json[dataName] == undefined) throw new Error("data undefined");
                     datas.push(json);
                     logger.info(datas);
                     res.writeHead(200, {"Content-Type": "application/json; charset=utf-8"});
