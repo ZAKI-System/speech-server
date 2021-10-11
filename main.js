@@ -24,10 +24,10 @@ const server = http.createServer(function(req, res) {
             // [GET] /get データ確認用
             logger.info(`[${req.method}] ${req.url} from ${req.socket.remoteAddress}`);
             let disp = (datas.length > 0);
-            let rt = datas.shift();//string|undef
+            let rt = datas.shift();//{"data":"string"}|undef
             if (disp) logger.info(datas);
             res.writeHead(200, {"Content-Type": "application/json; charset=utf-8"});
-            res.end(JSON.stringify({"data": rt}));//{"data": "stringstring"}|{}
+            res.end(JSON.stringify(rt == undefined ? {} : rt));//{"data":"stringstring"}|{}
             // 通信終了
         } else if (req.url == "/clear") {
             // [GET] /clear 破棄
@@ -74,7 +74,7 @@ const server = http.createServer(function(req, res) {
                 try {
                     let json = JSON.parse(body);
                     if (json["data"] == undefined) throw new Error("data undefined");
-                    datas.push(json["data"]);
+                    datas.push(json);
                     logger.info(datas);
                     res.writeHead(200, {"Content-Type": "application/json; charset=utf-8"});
                     res.end(JSON.stringify({"nodeMessage": "OK"}));
